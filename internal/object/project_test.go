@@ -36,3 +36,19 @@ func Test_validating_empty_project_passes(t *testing.T) {
 
 	assert.NoError(t, err)
 }
+
+func Test_validating_duplicated_project_fails(t *testing.T) {
+	collection := testCollection([]Object{
+		fakeObject{kind: ProjectKind},
+	})
+	input := prepareTestInput(`{
+		apiVersion: g2a-cli/v2.0,
+		kind: Project,
+		name: test,
+	}`)
+
+	project, _ := NewProject("dir/file.yaml", input)
+	err := project.Validate(collection)
+
+	assert.Error(t, err)
+}

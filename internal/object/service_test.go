@@ -3,9 +3,7 @@ package object
 import (
 	"testing"
 
-	"github.com/g2a-com/cicd/internal/schema"
 	"github.com/stretchr/testify/assert"
-	"gopkg.in/yaml.v3"
 )
 
 func Test_unmarshalling_empty_service(t *testing.T) {
@@ -311,30 +309,4 @@ func Test_validating_service_with_releases_entry_matching_deployer_schema_passes
 	err := service.Validate(collection)
 
 	assert.NoError(t, err)
-}
-
-// testInput validates input against schema and returns it back. Use only in
-// tests.
-func prepareTestInput(input string) *yaml.Node {
-	_, err := schema.Validate([]byte(input))
-	if err != nil {
-		panic(err)
-	}
-	result := &yaml.Node{}
-	err = yaml.Unmarshal([]byte(input), result)
-	if err != nil {
-		panic(err)
-	}
-	return result
-}
-
-type testCollection []Object
-
-func (c testCollection) GetObject(kind Kind, name string) Object {
-	for _, o := range c {
-		if o.Kind() == kind && o.Name() == name {
-			return o
-		}
-	}
-	return nil
 }

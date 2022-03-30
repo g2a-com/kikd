@@ -36,7 +36,6 @@ type Blueprint struct {
 	Tag            string
 	Preprocessors  []Preprocessor
 	objects        map[string]object.Object
-	project        object.Object
 	processedFiles map[string]bool
 }
 
@@ -113,8 +112,8 @@ func (b *Blueprint) Load(glob string) error {
 				return fmt.Errorf(`file "%s" contains invalid document: %s`, p, err)
 			}
 
-			for _, doc := range docs {
-				project, ok := doc.(object.Project)
+			for _, obj := range docs {
+				project, ok := obj.(object.Project)
 				if ok {
 					for _, entry := range project.Files {
 						globs = append(globs, path.Join(project.Directory(), entry))
@@ -132,9 +131,9 @@ func (b *Blueprint) Load(glob string) error {
 	return nil
 }
 
-// GetProject get Project object
+// GetProject gets Project object
 func (b *Blueprint) GetProject() object.Project {
-	return b.project.(object.Project)
+	return b.GetObjectsByKind(object.ProjectKind)[0].(object.Project)
 }
 
 // GetEnvironment gets Executor object by kind and name
@@ -175,13 +174,6 @@ func (b *Blueprint) addDocuments(documents ...object.Object) error {
 			return fmt.Errorf("%s is duplicated, it's defined in:\n\t* %s\n\t* %s", obj.DisplayName(), duplicate.Metadata(), obj.Metadata())
 		}
 		b.objects[key] = obj
-
-		if obj.Kind() == object.ProjectKind {
-			if b.project != nil {
-				return fmt.Errorf("project is duplicated, it's defined in:\n\t* %s\n\t* %s", b.project.Metadata(), obj.Metadata())
-			}
-			b.project = obj
-		}
 	}
 
 	return nil
@@ -252,6 +244,23 @@ func (b *Blueprint) GetObject(kind object.Kind, name string) object.Object {
 		return nil
 	}
 	return obj
+}
+
+func (b *Blueprint) GetObjectsByKind(kind object.Kind) []object.Object {
+	keys := make([]string, 0, len(b.objects))
+	for key, obj := range b.objects {
+		if obj.Kind() == kind {
+			keys = append(keys, key)
+		}
+	}
+	keys = sort.StringSlice(keys)
+
+	objects := make([]object.Object, 0, len(keys))
+	for _, key := range keys {
+		objects = append(objects, b.objects[key])
+	}
+
+	return objects
 }
 
 func (b *Blueprint) getServiceNames() (names []string) {

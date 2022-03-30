@@ -23,6 +23,7 @@ type Object interface {
 
 type ObjectCollection interface {
 	GetObject(kind Kind, name string) Object
+	GetObjectsByKind(kind Kind) []Object
 }
 
 type GenericObject struct {
