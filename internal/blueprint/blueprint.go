@@ -35,8 +35,8 @@ type Blueprint struct {
 	Environment    string
 	Tag            string
 	Preprocessors  []Preprocessor
-	documents      map[string]*document
-	project        *document
+	objects        map[string]object.Object
+	project        object.Object
 	processedFiles map[string]bool
 }
 
@@ -44,8 +44,8 @@ func (b *Blueprint) init() error {
 	if b.processedFiles == nil {
 		b.processedFiles = map[string]bool{}
 	}
-	if b.documents == nil {
-		b.documents = map[string]*document{}
+	if b.objects == nil {
+		b.objects = map[string]object.Object{}
 	}
 
 	if b.Mode == "" {
@@ -58,8 +58,8 @@ func (b *Blueprint) init() error {
 }
 
 func (b *Blueprint) Validate() (err error) {
-	for _, d := range b.documents {
-		e := d.Object.Validate(b)
+	for _, obj := range b.objects {
+		e := obj.Validate(b)
 		if e != nil {
 			err = multierror.Append(err, e)
 		}
@@ -114,7 +114,7 @@ func (b *Blueprint) Load(glob string) error {
 			}
 
 			for _, doc := range docs {
-				project, ok := doc.Object.(object.Project)
+				project, ok := doc.(object.Project)
 				if ok {
 					for _, entry := range project.Files {
 						globs = append(globs, path.Join(project.Directory(), entry))
@@ -134,7 +134,7 @@ func (b *Blueprint) Load(glob string) error {
 
 // GetProject get Project object
 func (b *Blueprint) GetProject() object.Project {
-	return b.project.Object.(object.Project)
+	return b.project.(object.Project)
 }
 
 // GetEnvironment gets Executor object by kind and name
@@ -167,20 +167,20 @@ func (b *Blueprint) ListServices() []object.Service {
 	return services
 }
 
-func (b *Blueprint) addDocuments(documents ...*document) error {
-	for _, d := range documents {
-		key := string(d.Kind) + "/" + d.Name
-		duplicate, ok := b.documents[key]
+func (b *Blueprint) addDocuments(documents ...object.Object) error {
+	for _, obj := range documents {
+		key := string(obj.Kind()) + "/" + obj.Name()
+		duplicate, ok := b.objects[key]
 		if ok {
-			return fmt.Errorf("%s %q is duplicated, it's defined in:\n\t* %s\n\t* %s", strings.ToLower(string(d.Kind)), d.Name, duplicate.FilePath, d.FilePath)
+			return fmt.Errorf("%s is duplicated, it's defined in:\n\t* %s\n\t* %s", obj.DisplayName(), duplicate.Metadata(), obj.Metadata())
 		}
-		b.documents[key] = d
+		b.objects[key] = obj
 
-		if d.Kind == object.ProjectKind {
+		if obj.Kind() == object.ProjectKind {
 			if b.project != nil {
-				return fmt.Errorf("project is duplicated, it's defined in:\n\t* %s\n\t* %s", b.project.FilePath, d.FilePath)
+				return fmt.Errorf("project is duplicated, it's defined in:\n\t* %s\n\t* %s", b.project.Metadata(), obj.Metadata())
 			}
-			b.project = d
+			b.project = obj
 		}
 	}
 
@@ -190,8 +190,8 @@ func (b *Blueprint) addDocuments(documents ...*document) error {
 func (b *Blueprint) ExpandPlaceholders() (err error) {
 	project := b.GetProject()
 
-	for _, d := range b.documents {
-		service, ok := d.Object.(object.Service)
+	for _, obj := range b.objects {
+		service, ok := obj.(object.Service)
 		if !ok {
 			continue
 		}
@@ -247,20 +247,20 @@ func (b *Blueprint) ExpandPlaceholders() (err error) {
 
 func (b *Blueprint) GetObject(kind object.Kind, name string) object.Object {
 	key := string(kind) + "/" + name
-	d, ok := b.documents[key]
+	obj, ok := b.objects[key]
 	if !ok {
 		return nil
 	}
-	return d.Object
+	return obj
 }
 
 func (b *Blueprint) getServiceNames() (names []string) {
 	if len(b.Services) > 0 {
 		return b.Services
 	}
-	for _, d := range b.documents {
-		if d.Kind == object.ServiceKind {
-			names = append(names, d.Name)
+	for _, obj := range b.objects {
+		if obj.Kind() == object.ServiceKind {
+			names = append(names, obj.Name())
 		}
 	}
 	sort.Strings(names)
@@ -268,18 +268,24 @@ func (b *Blueprint) getServiceNames() (names []string) {
 }
 
 func (b *Blueprint) getEnvironmentNames() (names []string) {
-	for _, d := range b.documents {
-		if d.Kind == object.EnvironmentKind {
-			names = append(names, d.Name)
+	for _, obj := range b.objects {
+		if obj.Kind() == object.EnvironmentKind {
+			names = append(names, obj.Name())
 		}
 	}
 	sort.Strings(names)
 	return names
 }
 
-func (b *Blueprint) readFile(filePath string, mode Mode) ([]*document, error) {
-	log.Debugf("Loading file: %s", filePath)
-	buf, err := ioutil.ReadFile(filePath)
+func (b *Blueprint) readFile(filename string, mode Mode) ([]object.Object, error) {
+	log.Debugf("Loading file: %s", filename)
+
+	filename, err := filepath.Abs(filename)
+	if err != nil {
+		return nil, err
+	}
+
+	buf, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return nil, err
 	}
@@ -287,11 +293,11 @@ func (b *Blueprint) readFile(filePath string, mode Mode) ([]*document, error) {
 	for _, preprocessor := range b.Preprocessors {
 		buf, err = preprocessor(buf)
 		if err != nil {
-			return nil, fmt.Errorf(`file "%s" contains invalid document: %s`, filePath, err)
+			return nil, fmt.Errorf(`file "%s" contains invalid document: %s`, filename, err)
 		}
 	}
 
-	var documents []*document
+	var documents []object.Object
 
 	reader := bytes.NewReader(buf)
 	decoder := yaml.NewDecoder(reader)
@@ -302,17 +308,29 @@ func (b *Blueprint) readFile(filePath string, mode Mode) ([]*document, error) {
 		err := decoder.Decode(&content)
 		if err != nil {
 			if err != io.EOF {
-				return nil, fmt.Errorf(`file "%s" contains invalid document: %s`, filePath, err)
+				return nil, fmt.Errorf(`file "%s" contains invalid document: %s`, filename, err)
 			}
 			break
 		}
 
-		doc, err := newDocument(filePath, i, mode, &content)
+		doc, err := object.NewObject(filename, &content)
 		if err != nil {
-			return nil, fmt.Errorf(`file "%s" contains invalid document: %s`, filePath, err)
+			return nil, err
 		}
 
-		if mode != DeployMode && doc.Kind == object.EnvironmentKind {
+		if service, ok := doc.(object.Service); ok {
+			if mode != BuildMode {
+				service.Build.Artifacts.ToBuild = []object.ServiceEntry{}
+				service.Build.Artifacts.ToPush = []object.ServiceEntry{}
+				service.Build.Tags = []object.ServiceEntry{}
+			}
+			if mode != DeployMode {
+				service.Deploy.Releases = []object.ServiceEntry{}
+			}
+			doc = service
+		}
+
+		if mode != DeployMode && doc.Kind() == object.EnvironmentKind {
 			continue
 		}
 
