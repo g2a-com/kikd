@@ -143,12 +143,6 @@ func (b *Blueprint) GetExecutor(kind object.Kind, name string) (object.Executor,
 	return e, o != nil && ok
 }
 
-// GetEnvironment gets Service object by the name
-func (b *Blueprint) GetService(name string) (object.Service, bool) {
-	o := b.GetObject(object.ServiceKind, name)
-	return o.(object.Service), o != nil
-}
-
 // GetEnvironment gets Environment object by the name
 func (b *Blueprint) GetEnvironment(name string) (object.Environment, bool) {
 	o := b.GetObject(object.EnvironmentKind, name)
@@ -156,12 +150,11 @@ func (b *Blueprint) GetEnvironment(name string) (object.Environment, bool) {
 }
 
 // ListServices returns all service objects in the blueprint
-func (b *Blueprint) ListServices() []object.Service {
+func (b *Blueprint) ListServices() []object.Object {
 	names := b.getServiceNames()
-	services := make([]object.Service, 0, len(names))
+	services := make([]object.Object, 0, len(names))
 	for _, name := range b.getServiceNames() {
-		s, _ := b.GetService(name)
-		services = append(services, s)
+		services = append(services, b.GetObject(object.ServiceKind, name))
 	}
 	return services
 }
@@ -183,8 +176,7 @@ func (b *Blueprint) ExpandPlaceholders() (err error) {
 	project := b.GetProject()
 
 	for _, obj := range b.objects {
-		service, ok := obj.(object.Service)
-		if !ok {
+		if obj.Kind() != object.ServiceKind {
 			continue
 		}
 
@@ -195,8 +187,8 @@ func (b *Blueprint) ExpandPlaceholders() (err error) {
 				"Vars": project.Variables,
 			},
 			"Service": map[string]interface{}{
-				"Dir":  service.Directory(),
-				"Name": service.Name(),
+				"Dir":  obj.Directory(),
+				"Name": obj.Name(),
 			},
 			"Params": b.Params,
 		}
@@ -214,22 +206,26 @@ func (b *Blueprint) ExpandPlaceholders() (err error) {
 			values["Tag"] = b.Tag
 		}
 
-		for i := range service.Build.Artifacts.ToBuild {
-			service.Build.Artifacts.ToBuild[i].Data.Spec, err = placeholders.ReplaceWithValues(service.Build.Artifacts.ToBuild[i].Data.Spec, values)
-			if err != nil {
-				return err
+		switch service := obj.(type) {
+		case object.BuildService:
+			for i := range service.Build.Artifacts.ToBuild {
+				service.Build.Artifacts.ToBuild[i].Data.Spec, err = placeholders.ReplaceWithValues(service.Build.Artifacts.ToBuild[i].Data.Spec, values)
+				if err != nil {
+					return err
+				}
 			}
-		}
-		for i := range service.Build.Artifacts.ToPush {
-			service.Build.Artifacts.ToPush[i].Data.Spec, err = placeholders.ReplaceWithValues(service.Build.Artifacts.ToPush[i].Data.Spec, values)
-			if err != nil {
-				return err
+			for i := range service.Build.Artifacts.ToPush {
+				service.Build.Artifacts.ToPush[i].Data.Spec, err = placeholders.ReplaceWithValues(service.Build.Artifacts.ToPush[i].Data.Spec, values)
+				if err != nil {
+					return err
+				}
 			}
-		}
-		for i := range service.Deploy.Releases {
-			service.Deploy.Releases[i].Data.Spec, err = placeholders.ReplaceWithValues(service.Deploy.Releases[i].Data.Spec, values)
-			if err != nil {
-				return err
+		case object.DeployService:
+			for i := range service.Deploy.Releases {
+				service.Deploy.Releases[i].Data.Spec, err = placeholders.ReplaceWithValues(service.Deploy.Releases[i].Data.Spec, values)
+				if err != nil {
+					return err
+				}
 			}
 		}
 	}
@@ -322,21 +318,9 @@ func (b *Blueprint) readFile(filename string, mode Mode) ([]object.Object, error
 			break
 		}
 
-		doc, err := object.NewObject(filename, &content)
+		doc, err := object.NewObject(string(b.Mode), filename, &content)
 		if err != nil {
 			return nil, err
-		}
-
-		if service, ok := doc.(object.Service); ok {
-			if mode != BuildMode {
-				service.Build.Artifacts.ToBuild = []*object.ServiceEntry{}
-				service.Build.Artifacts.ToPush = []*object.ServiceEntry{}
-				service.Build.Tags = []*object.ServiceEntry{}
-			}
-			if mode != DeployMode {
-				service.Deploy.Releases = []*object.ServiceEntry{}
-			}
-			doc = service
 		}
 
 		if mode != DeployMode && doc.Kind() == object.EnvironmentKind {

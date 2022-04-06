@@ -3,11 +3,11 @@ package object
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/qri-io/jsonschema"
-	"gopkg.in/yaml.v3"
 )
 
 type ServiceEntry struct {
@@ -35,57 +35,14 @@ func (e *ServiceEntry) Spec(ObjectCollection) interface{} {
 	return e.Data.Spec
 }
 
-type Service struct {
+type GenericService struct {
 	GenericObject
-
-	Build struct {
-		Tags      []*ServiceEntry
-		Artifacts struct {
-			ToBuild []*ServiceEntry
-			ToPush  []*ServiceEntry
-		}
-	}
-	Deploy struct {
-		Releases []*ServiceEntry
-	}
-	Run struct {
-		Tasks map[string][]*ServiceEntry
-	}
 	entries map[string][]Entry
 }
 
-var _ Object = Service{}
+var _ Object = GenericService{}
 
-func NewService(filename string, data *yaml.Node) (service Service, err error) {
-	service.GenericObject.metadata = NewMetadata(filename, data)
-	err = decode(data, &service)
-
-	service.entries = map[string][]Entry{}
-	service.entries[TagEntryType] = make([]Entry, len(service.Build.Tags))
-	for i, entry := range service.Build.Tags {
-		entry.executorKind = TaggerKind
-		service.entries[TagEntryType][i] = entry
-	}
-	service.entries[BuildEntryType] = make([]Entry, len(service.Build.Artifacts.ToBuild))
-	for i, entry := range service.Build.Artifacts.ToBuild {
-		entry.executorKind = BuilderKind
-		service.entries[BuildEntryType][i] = entry
-	}
-	service.entries[PushEntryType] = make([]Entry, len(service.Build.Artifacts.ToPush))
-	for i, entry := range service.Build.Artifacts.ToPush {
-		entry.executorKind = PusherKind
-		service.entries[PushEntryType][i] = entry
-	}
-	service.entries[DeployEntryType] = make([]Entry, len(service.Deploy.Releases))
-	for i, entry := range service.Deploy.Releases {
-		entry.executorKind = DeployerKind
-		service.entries[DeployEntryType][i] = entry
-	}
-
-	return
-}
-
-func (s Service) Validate(c ObjectCollection) (err error) {
+func (s GenericService) Validate(c ObjectCollection) (err error) {
 	for _, entryType := range s.EntryTypes() {
 		for _, entry := range s.entries[entryType] {
 			obj := c.GetObject(entry.ExecutorKind(), entry.ExecutorName())
@@ -120,12 +77,16 @@ func (s Service) Validate(c ObjectCollection) (err error) {
 	return
 }
 
-func (s Service) EntryTypes() []string {
-	// FIXME: return types for tasks
-	return []string{TagEntryType, BuildEntryType, PushEntryType, DeployEntryType}
+func (s GenericService) EntryTypes() []string {
+	result := make([]string, 0, len(s.entries))
+	for key := range s.entries {
+		result = append(result, key)
+	}
+	sort.Strings(result)
+	return result
 }
 
-func (s Service) Entries(entryType string) []Entry {
+func (s GenericService) Entries(entryType string) []Entry {
 	result := make([]Entry, len(s.entries[entryType]))
 	copy(result, s.entries[entryType])
 	return result

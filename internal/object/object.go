@@ -68,7 +68,7 @@ func (o GenericObject) Entries(entryType string) []Entry {
 	return []Entry{}
 }
 
-func NewObject(filename string, data *yaml.Node) (Object, error) {
+func NewObject(mode string, filename string, data *yaml.Node) (Object, error) {
 	var obj GenericObject
 	err := data.Decode(&obj)
 	if err != nil {
@@ -79,7 +79,14 @@ func NewObject(filename string, data *yaml.Node) (Object, error) {
 	case ProjectKind:
 		return NewProject(filename, data)
 	case ServiceKind:
-		return NewService(filename, data)
+		switch mode {
+		case "build":
+			return NewBuildService(filename, data)
+		case "deploy":
+			return NewDeployService(filename, data)
+		default:
+			return nil, fmt.Errorf("unknown mode %s", mode)
+		}
 	case EnvironmentKind:
 		return NewEnvironment(filename, data)
 	case BuilderKind, DeployerKind, PusherKind, TaggerKind:

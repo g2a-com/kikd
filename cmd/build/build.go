@@ -81,7 +81,7 @@ func main() {
 	for _, service := range blueprint.ListServices() {
 		l := l.WithTags(service.Name())
 
-		if len(service.Build.Artifacts.ToBuild) == 0 {
+		if len(service.Entries(object.BuildEntryType)) == 0 {
 			l.WithLevel(log.VerboseLevel).Print("No artifacts to build")
 			continue
 		}
