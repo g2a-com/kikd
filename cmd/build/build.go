@@ -87,12 +87,12 @@ func main() {
 		}
 
 		// Generate tags
-		for _, entry := range service.Build.Tags {
-			s := script.New(getExecutor(object.TaggerKind, entry.Type))
+		for _, entry := range service.Entries(object.TagEntryType) {
+			s := script.New(getExecutor(entry.ExecutorKind(), entry.ExecutorName()))
 			s.Logger = l
 
 			res, err := s.Run(TaggerInput{
-				Spec: entry.Spec,
+				Spec: entry.Spec(&blueprint),
 				Dirs: Dirs{
 					Project: blueprint.GetProject().Directory(),
 					Service: service.Directory(),
@@ -109,12 +109,12 @@ func main() {
 		}
 
 		// Build artifacts
-		for _, entry := range service.Build.Artifacts.ToBuild {
-			s := script.New(getExecutor(object.BuilderKind, entry.Type))
+		for _, entry := range service.Entries(object.BuildEntryType) {
+			s := script.New(getExecutor(entry.ExecutorKind(), entry.ExecutorName()))
 			s.Logger = l
 
 			res, err := s.Run(BuilderInput{
-				Spec: entry.Spec,
+				Spec: entry.Spec(&blueprint),
 				Tags: result.getTags(service),
 				Dirs: Dirs{
 					Project: blueprint.GetProject().Directory(),
@@ -132,12 +132,12 @@ func main() {
 		for _, service := range blueprint.ListServices() {
 			l := l.WithTags("push", service.Name())
 
-			for _, entry := range service.Build.Artifacts.ToPush {
-				s := script.New(getExecutor(object.PusherKind, entry.Type))
+			for _, entry := range service.Entries(object.PushEntryType) {
+				s := script.New(getExecutor(entry.ExecutorKind(), entry.ExecutorName()))
 				s.Logger = l
 
 				res, err := s.Run(PusherInput{
-					Spec:      entry.Spec,
+					Spec:      entry.Spec(&blueprint),
 					Tags:      result.getTags(service),
 					Artifacts: result.getArtifacts(service, entry),
 					Dirs: Dirs{

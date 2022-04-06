@@ -13,6 +13,8 @@ type fakeObject struct {
 	directory   string
 	displayName string
 	schema      string
+	entryTypes  []string
+	entries     []Entry
 }
 
 func (o fakeObject) Name() string {
@@ -41,6 +43,14 @@ func (o fakeObject) Validate(ObjectCollection) error {
 
 func (o fakeObject) Schema() *jsonschema.Schema {
 	return jsonschema.Must(o.schema)
+}
+
+func (o fakeObject) EntryTypes() []string {
+	return o.entryTypes
+}
+
+func (o fakeObject) Entries(string) []Entry {
+	return o.entries
 }
 
 // testInput validates input against schema and returns it back. Use only in

@@ -215,19 +215,19 @@ func (b *Blueprint) ExpandPlaceholders() (err error) {
 		}
 
 		for i := range service.Build.Artifacts.ToBuild {
-			service.Build.Artifacts.ToBuild[i].Spec, err = placeholders.ReplaceWithValues(service.Build.Artifacts.ToBuild[i].Spec, values)
+			service.Build.Artifacts.ToBuild[i].Data.Spec, err = placeholders.ReplaceWithValues(service.Build.Artifacts.ToBuild[i].Data.Spec, values)
 			if err != nil {
 				return err
 			}
 		}
 		for i := range service.Build.Artifacts.ToPush {
-			service.Build.Artifacts.ToPush[i].Spec, err = placeholders.ReplaceWithValues(service.Build.Artifacts.ToPush[i].Spec, values)
+			service.Build.Artifacts.ToPush[i].Data.Spec, err = placeholders.ReplaceWithValues(service.Build.Artifacts.ToPush[i].Data.Spec, values)
 			if err != nil {
 				return err
 			}
 		}
 		for i := range service.Deploy.Releases {
-			service.Deploy.Releases[i].Spec, err = placeholders.ReplaceWithValues(service.Deploy.Releases[i].Spec, values)
+			service.Deploy.Releases[i].Data.Spec, err = placeholders.ReplaceWithValues(service.Deploy.Releases[i].Data.Spec, values)
 			if err != nil {
 				return err
 			}
@@ -329,12 +329,12 @@ func (b *Blueprint) readFile(filename string, mode Mode) ([]object.Object, error
 
 		if service, ok := doc.(object.Service); ok {
 			if mode != BuildMode {
-				service.Build.Artifacts.ToBuild = []object.ServiceEntry{}
-				service.Build.Artifacts.ToPush = []object.ServiceEntry{}
-				service.Build.Tags = []object.ServiceEntry{}
+				service.Build.Artifacts.ToBuild = []*object.ServiceEntry{}
+				service.Build.Artifacts.ToPush = []*object.ServiceEntry{}
+				service.Build.Tags = []*object.ServiceEntry{}
 			}
 			if mode != DeployMode {
-				service.Deploy.Releases = []object.ServiceEntry{}
+				service.Deploy.Releases = []*object.ServiceEntry{}
 			}
 			doc = service
 		}

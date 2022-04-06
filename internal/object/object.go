@@ -19,6 +19,8 @@ type Object interface {
 	DisplayName() string
 	Directory() string
 	Validate(ObjectCollection) error
+	EntryTypes() []string
+	Entries(string) []Entry
 }
 
 type ObjectCollection interface {
@@ -56,6 +58,14 @@ func (o GenericObject) DisplayName() string {
 
 func (o GenericObject) Validate(ObjectCollection) error {
 	return nil
+}
+
+func (o GenericObject) EntryTypes() []string {
+	return []string{}
+}
+
+func (o GenericObject) Entries(entryType string) []Entry {
+	return []Entry{}
 }
 
 func NewObject(filename string, data *yaml.Node) (Object, error) {

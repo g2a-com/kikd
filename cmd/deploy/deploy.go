@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	. "github.com/g2a-com/cicd/internal/blueprint"
 	"github.com/g2a-com/cicd/internal/flags"
@@ -84,22 +85,22 @@ func main() {
 	for _, service := range blueprint.ListServices() {
 		l := l.WithTags(service.Name())
 
-		if len(service.Deploy.Releases) == 0 {
+		if len(service.Entries(object.DeployEntryType)) == 0 {
 			l.WithLevel(log.VerboseLevel).Print("No releases to deploy")
 			continue
 		}
 
 		l.Printf(`Deploying service %q...`, service.Name())
 
-		for _, entry := range service.Deploy.Releases {
-			e, ok := blueprint.GetExecutor(object.DeployerKind, entry.Type)
-			assert(ok, fmt.Errorf("deployer %q does not exist", entry.Type))
+		for _, entry := range service.Entries(object.DeployEntryType) {
+			e, ok := blueprint.GetExecutor(entry.ExecutorKind(), entry.ExecutorName())
+			assert(ok, fmt.Errorf("%s %q does not exist", strings.ToLower(string(entry.ExecutorKind())), entry.ExecutorName()))
 
 			s := script.New(e)
 			s.Logger = l
 
 			res, err := s.Run(DeployerInput{
-				Spec:   entry.Spec,
+				Spec:   entry.Spec(&blueprint),
 				Force:  opts.Force,
 				DryRun: opts.DryRun,
 				Wait:   opts.Wait,

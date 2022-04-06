@@ -16,7 +16,7 @@ type Result struct {
 	PushedArtifacts []ResultEntry `json:"pushedArtifacts"`
 }
 
-func (r *Result) getTags(service object.Service) (tags []string) {
+func (r *Result) getTags(service object.Object) (tags []string) {
 	for _, r := range r.Tags {
 		if r.Service == service.Name() {
 			tags = append(tags, r.Result)
@@ -25,29 +25,29 @@ func (r *Result) getTags(service object.Service) (tags []string) {
 	return tags
 }
 
-func (r *Result) addTags(service object.Service, entry object.ServiceEntry, tags []string) {
+func (r *Result) addTags(service object.Object, entry object.Entry, tags []string) {
 	for _, tag := range tags {
-		r.Tags = append(r.Tags, ResultEntry{service.Name(), entry.Index, tag})
+		r.Tags = append(r.Tags, ResultEntry{service.Name(), entry.Index(), tag})
 	}
 }
 
-func (r *Result) getArtifacts(service object.Service, entry object.ServiceEntry) (artifacts []string) {
+func (r *Result) getArtifacts(service object.Object, entry object.Entry) (artifacts []string) {
 	for _, r := range r.Artifacts {
-		if r.Service == service.Name() && r.Entry == entry.Index {
+		if r.Service == service.Name() && r.Entry == entry.Index() {
 			artifacts = append(artifacts, r.Result)
 		}
 	}
 	return artifacts
 }
 
-func (r *Result) addArtifacts(service object.Service, entry object.ServiceEntry, artifacts []string) {
+func (r *Result) addArtifacts(service object.Object, entry object.Entry, artifacts []string) {
 	for _, artifact := range artifacts {
-		r.Artifacts = append(r.Artifacts, ResultEntry{service.Name(), entry.Index, artifact})
+		r.Artifacts = append(r.Artifacts, ResultEntry{service.Name(), entry.Index(), artifact})
 	}
 }
 
-func (r *Result) addPushedArtifacts(service object.Service, entry object.ServiceEntry, artifacts []string) {
+func (r *Result) addPushedArtifacts(service object.Object, entry object.Entry, artifacts []string) {
 	for _, artifact := range artifacts {
-		r.PushedArtifacts = append(r.PushedArtifacts, ResultEntry{service.Name(), entry.Index, artifact})
+		r.PushedArtifacts = append(r.PushedArtifacts, ResultEntry{service.Name(), entry.Index(), artifact})
 	}
 }

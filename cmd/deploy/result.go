@@ -14,8 +14,8 @@ type Result struct {
 	Releases []ResultEntry `json:"releases"`
 }
 
-func (r *Result) addReleases(service object.Service, entry object.ServiceEntry, releases []string) {
+func (r *Result) addReleases(service object.Object, entry object.Entry, releases []string) {
 	for _, release := range releases {
-		r.Releases = append(r.Releases, ResultEntry{service.Name(), entry.Index, release})
+		r.Releases = append(r.Releases, ResultEntry{service.Name(), entry.Index(), release})
 	}
 }

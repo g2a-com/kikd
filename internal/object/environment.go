@@ -30,7 +30,3 @@ func (e Environment) Validate(c ObjectCollection) (err error) {
 	}
 	return
 }
-
-func (e Environment) Entries(string) []ServiceEntry {
-	return []ServiceEntry{}
-}

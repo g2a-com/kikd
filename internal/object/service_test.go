@@ -310,3 +310,141 @@ func Test_validating_service_with_releases_entry_matching_deployer_schema_passes
 
 	assert.NoError(t, err)
 }
+
+func Test_getting_entry_types_list_works(t *testing.T) {
+	input := prepareTestInput(`{
+		apiVersion: g2a-cli/v2.0, kind: Service, name: test,
+	}`)
+
+	service, _ := NewService("dir/file.yaml", input)
+	result := service.EntryTypes()
+
+	assert.Equal(t, []string{"tag", "build", "push", "deploy"}, result)
+}
+
+func Test_getting_tag_entries_returns_only_entries_defined_in_tags_property(t *testing.T) {
+	collection := testCollection([]Object{
+		fakeObject{kind: ProjectKind},
+	})
+	input := prepareTestInput(`{
+		apiVersion: g2a-cli/v2.0, kind: Service, name: test,
+		tags: [{ tag1: spec1 }, { tag2: spec2 }],
+		artifacts: [{ build: spec }],
+	}`)
+
+	service, _ := NewService("dir/file.yaml", input)
+	result := service.Entries(TagEntryType)
+
+	assert.Len(t, result, 2)
+	assert.Equal(t, 0, result[0].Index())
+	assert.Equal(t, TaggerKind, result[0].ExecutorKind())
+	assert.Equal(t, "tag1", result[0].ExecutorName())
+	assert.Equal(t, "spec1", result[0].Spec(collection))
+	assert.Equal(t, 1, result[1].Index())
+	assert.Equal(t, TaggerKind, result[1].ExecutorKind())
+	assert.Equal(t, "tag2", result[1].ExecutorName())
+	assert.Equal(t, "spec2", result[1].Spec(collection))
+}
+
+func Test_getting_build_entries_returns_only_entries_defined_in_artifacts_property(t *testing.T) {
+	collection := testCollection([]Object{
+		fakeObject{kind: ProjectKind},
+	})
+	input := prepareTestInput(`{
+		apiVersion: g2a-cli/v2.0, kind: Service, name: test,
+		tags: [{ tag: spec }],
+		artifacts: [{ build1: spec1 }, { build2: spec2 }],
+	}`)
+
+	service, _ := NewService("dir/file.yaml", input)
+	result := service.Entries(BuildEntryType)
+
+	assert.Len(t, result, 2)
+	assert.Equal(t, 0, result[0].Index())
+	assert.Equal(t, BuilderKind, result[0].ExecutorKind())
+	assert.Equal(t, "build1", result[0].ExecutorName())
+	assert.Equal(t, "spec1", result[0].Spec(collection))
+	assert.Equal(t, 1, result[1].Index())
+	assert.Equal(t, BuilderKind, result[1].ExecutorKind())
+	assert.Equal(t, "build2", result[1].ExecutorName())
+	assert.Equal(t, "spec2", result[1].Spec(collection))
+}
+
+func Test_getting_push_entries_returns_only_entries_defined_in_artifacts_property_preffering_definition_from_push_property_when_specified(t *testing.T) {
+	collection := testCollection([]Object{
+		fakeObject{kind: ProjectKind},
+	})
+	input := prepareTestInput(`{
+		apiVersion: g2a-cli/v2.0, kind: Service, name: test,
+		tags: [{ tag: spec }],
+		artifacts: [
+			{ build1: spec1 },
+			{ build2: spec, push: { push2: spec2 } },
+		],
+	}`)
+
+	service, _ := NewService("dir/file.yaml", input)
+	result := service.Entries(PushEntryType)
+
+	assert.Len(t, result, 2)
+	assert.Equal(t, 0, result[0].Index())
+	assert.Equal(t, PusherKind, result[0].ExecutorKind())
+	assert.Equal(t, "build1", result[0].ExecutorName())
+	assert.Equal(t, "spec1", result[0].Spec(collection))
+	assert.Equal(t, 1, result[1].Index())
+	assert.Equal(t, PusherKind, result[1].ExecutorKind())
+	assert.Equal(t, "push2", result[1].ExecutorName())
+	assert.Equal(t, "spec2", result[1].Spec(collection))
+}
+
+func Test_getting_push_entries_ignores_entries_with_push_property_set_to_false(t *testing.T) {
+	input := prepareTestInput(`{
+		apiVersion: g2a-cli/v2.0, kind: Service, name: test,
+		tags: [{ tag: spec }],
+		artifacts: [
+			{ build1: spec1 },
+			{ build2: spec, push: false },
+		],
+	}`)
+
+	service, _ := NewService("dir/file.yaml", input)
+	result := service.Entries(PushEntryType)
+
+	assert.Len(t, result, 1)
+	assert.Equal(t, "build1", result[0].ExecutorName())
+}
+
+func Test_getting_deploy_entries_returns_only_entries_defined_in_releases_property(t *testing.T) {
+	collection := testCollection([]Object{
+		fakeObject{kind: ProjectKind},
+	})
+	input := prepareTestInput(`{
+		apiVersion: g2a-cli/v2.0, kind: Service, name: test,
+		artifacts: [{ build: spec }],
+		releases: [{ release1: spec1 }, { release2: spec2 }],
+	}`)
+
+	service, _ := NewService("dir/file.yaml", input)
+	result := service.Entries(DeployEntryType)
+
+	assert.Len(t, result, 2)
+	assert.Equal(t, 0, result[0].Index())
+	assert.Equal(t, DeployerKind, result[0].ExecutorKind())
+	assert.Equal(t, "release1", result[0].ExecutorName())
+	assert.Equal(t, "spec1", result[0].Spec(collection))
+	assert.Equal(t, 1, result[1].Index())
+	assert.Equal(t, DeployerKind, result[1].ExecutorKind())
+	assert.Equal(t, "release2", result[1].ExecutorName())
+	assert.Equal(t, "spec2", result[1].Spec(collection))
+}
+
+func Test_getting_entries_of_unknown_type_returns_empty_slice(t *testing.T) {
+	input := prepareTestInput(`{
+		apiVersion: g2a-cli/v2.0, kind: Service, name: test,
+	}`)
+
+	service, _ := NewService("dir/file.yaml", input)
+	result := service.Entries("unknown")
+
+	assert.Empty(t, result)
+}
