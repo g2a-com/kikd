@@ -7,22 +7,31 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-type Project struct {
+type Project interface {
+	Object
+
+	Files() []string
+}
+
+type project struct {
 	GenericObject
 
-	Files     []string
-	Variables map[string]string
+	Data struct {
+		Files     []string
+		Variables map[string]string
+	} `mapstructure:",squash"`
 }
 
-var _ Object = Project{}
+var _ Project = project{}
 
-func NewProject(filename string, data *yaml.Node) (project Project, err error) {
-	project.GenericObject.metadata = NewMetadata(filename, data)
-	err = decode(data, &project)
-	return
+func NewProject(filename string, data *yaml.Node) (Project, error) {
+	p := project{}
+	p.GenericObject.metadata = NewMetadata(filename, data)
+	err := decode(data, &p)
+	return p, err
 }
 
-func (p Project) Validate(objects ObjectCollection) (err error) {
+func (p project) Validate(objects ObjectCollection) (err error) {
 	for _, project := range objects.GetObjectsByKind(ProjectKind) {
 		if project.Metadata() != p.Metadata() {
 			err = multierror.Append(err, fmt.Errorf("project is duplicated, it's defined in:\n\t* %s\n\t* %s", project.Metadata(), p.Metadata()))
@@ -32,10 +41,14 @@ func (p Project) Validate(objects ObjectCollection) (err error) {
 	return
 }
 
-func (p Project) PlaceholderValues() map[string]interface{} {
+func (p project) PlaceholderValues() map[string]interface{} {
 	return map[string]interface{}{
 		"Project.Name": p.Name(),
 		"Project.Dir":  p.Directory(),
-		"Project.Vars": p.Variables,
+		"Project.Vars": p.Data.Variables,
 	}
+}
+
+func (p project) Files() []string {
+	return p.Data.Files
 }

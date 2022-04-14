@@ -114,7 +114,7 @@ func (b *Blueprint) Load(glob string) error {
 			for _, obj := range docs {
 				project, ok := obj.(object.Project)
 				if ok {
-					for _, entry := range project.Files {
+					for _, entry := range project.Files() {
 						globs = append(globs, path.Join(project.Directory(), entry))
 					}
 				}
@@ -132,7 +132,7 @@ func (b *Blueprint) Load(glob string) error {
 
 // GetProject gets Project object
 func (b *Blueprint) GetProject() object.Project {
-	return b.GetObjectsByKind(object.ProjectKind)[0].(object.Project)
+	return b.GetUniqueObject(object.ProjectKind).(object.Project)
 }
 
 // GetEnvironment gets Executor object by kind and name
