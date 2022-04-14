@@ -15,6 +15,7 @@ type fakeObject struct {
 	directory         string
 	displayName       string
 	schema            string
+	script            string
 	entryTypes        []string
 	entries           []Entry
 	placeholderValues map[string]interface{}
@@ -51,6 +52,10 @@ func (o fakeObject) Schema() *jsonschema.Schema {
 		return jsonschema.Must("{}")
 	}
 	return jsonschema.Must(o.schema)
+}
+
+func (o fakeObject) Script() string {
+	return o.script
 }
 
 func (o fakeObject) EntryTypes() []string {

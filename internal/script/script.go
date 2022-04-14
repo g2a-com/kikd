@@ -27,7 +27,7 @@ func (s *Script) Run(input interface{}) (results []string, err error) {
 	s.Logger.WithLevel(logger.SpamLevel).Printf("Running %s", displayName)
 
 	// Create a new tengo script instance
-	script := tengo.NewScript([]byte(s.executor.Script))
+	script := tengo.NewScript([]byte(s.executor.Script()))
 
 	// Prepare function for updating results
 	addResult := func(rs ...string) {

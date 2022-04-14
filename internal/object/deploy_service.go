@@ -7,7 +7,6 @@ import (
 
 	"github.com/g2a-com/cicd/internal/placeholders"
 	"github.com/hashicorp/go-multierror"
-	"github.com/qri-io/jsonschema"
 	"gopkg.in/yaml.v3"
 )
 
@@ -73,10 +72,7 @@ func (e *deployServiceEntry) Validate(objects ObjectCollection) error {
 		)
 	}
 
-	executor, ok := obj.(interface {
-		Object
-		Schema() *jsonschema.Schema
-	})
+	executor, ok := obj.(Executor)
 	if !ok {
 		panic("not an executor")
 	}
