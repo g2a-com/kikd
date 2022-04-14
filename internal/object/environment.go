@@ -7,22 +7,23 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-type Environment struct {
+type environment struct {
 	GenericObject
 
 	DeployServices []string
 	Variables      map[string]string
 }
 
-var _ Object = Environment{}
+var _ Object = environment{}
 
-func NewEnvironment(filename string, data *yaml.Node) (environment Environment, err error) {
-	environment.GenericObject.metadata = NewMetadata(filename, data)
-	err = decode(data, &environment)
-	return
+func NewEnvironment(filename string, data *yaml.Node) (Object, error) {
+	e := environment{}
+	e.GenericObject.metadata = NewMetadata(filename, data)
+	err := decode(data, &e)
+	return e, err
 }
 
-func (e Environment) Validate(c ObjectCollection) (err error) {
+func (e environment) Validate(c ObjectCollection) (err error) {
 	for _, name := range e.DeployServices {
 		if c.GetObject(ServiceKind, name) == nil {
 			err = multierror.Append(err, fmt.Errorf("missing service %q deployed to environment %q defined in the file:\n\t  %s", name, e.Name(), e.Metadata().Filename()))
@@ -31,7 +32,7 @@ func (e Environment) Validate(c ObjectCollection) (err error) {
 	return
 }
 
-func (e Environment) PlaceholderValues() map[string]interface{} {
+func (e environment) PlaceholderValues() map[string]interface{} {
 	return map[string]interface{}{
 		"Environment.Name": e.Name(),
 		"Environment.Dir":  e.Directory(),

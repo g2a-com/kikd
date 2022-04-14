@@ -10,7 +10,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-type BuildService struct {
+type buildService struct {
 	GenericService
 
 	Build struct {
@@ -22,11 +22,12 @@ type BuildService struct {
 	}
 }
 
-var _ Object = BuildService{}
+var _ Object = buildService{}
 
-func NewBuildService(filename string, data *yaml.Node) (service BuildService, err error) {
+func NewBuildService(filename string, data *yaml.Node) (Object, error) {
+	service := buildService{}
 	service.GenericObject.metadata = NewMetadata(filename, data)
-	err = decode(data, &service)
+	err := decode(data, &service)
 
 	service.entries = map[string][]Entry{}
 	service.entries[TagEntryType] = make([]Entry, len(service.Build.Tags))
@@ -48,7 +49,7 @@ func NewBuildService(filename string, data *yaml.Node) (service BuildService, er
 		service.entries[PushEntryType][i] = entry
 	}
 
-	return
+	return service, err
 }
 
 type buildServiceEntry struct {

@@ -10,7 +10,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-type DeployService struct {
+type deployService struct {
 	GenericService
 
 	Deploy struct {
@@ -18,11 +18,12 @@ type DeployService struct {
 	}
 }
 
-var _ Object = DeployService{}
+var _ Object = deployService{}
 
-func NewDeployService(filename string, data *yaml.Node) (service DeployService, err error) {
+func NewDeployService(filename string, data *yaml.Node) (Object, error) {
+	service := deployService{}
 	service.GenericObject.metadata = NewMetadata(filename, data)
-	err = decode(data, &service)
+	err := decode(data, &service)
 
 	service.entries = map[string][]Entry{}
 	service.entries[DeployEntryType] = make([]Entry, len(service.Deploy.Releases))
@@ -32,7 +33,7 @@ func NewDeployService(filename string, data *yaml.Node) (service DeployService, 
 		service.entries[DeployEntryType][i] = entry
 	}
 
-	return
+	return service, err
 }
 
 type deployServiceEntry struct {

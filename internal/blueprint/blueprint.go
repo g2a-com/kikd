@@ -143,9 +143,9 @@ func (b *Blueprint) GetExecutor(kind object.Kind, name string) (object.Executor,
 }
 
 // GetEnvironment gets Environment object by the name
-func (b *Blueprint) GetEnvironment(name string) (object.Environment, bool) {
-	o := b.GetObject(object.EnvironmentKind, name)
-	return o.(object.Environment), o != nil
+func (b *Blueprint) GetEnvironment(name string) (object.Object, bool) {
+	obj := b.GetObject(object.EnvironmentKind, name)
+	return obj, obj != nil
 }
 
 // ListServices returns all service objects in the blueprint
