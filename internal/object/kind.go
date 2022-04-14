@@ -10,4 +10,5 @@ const (
 	PusherKind      Kind = "Pusher"
 	ServiceKind     Kind = "Service"
 	TaggerKind      Kind = "Tagger"
+	OptionsKind     Kind = "Options"
 )

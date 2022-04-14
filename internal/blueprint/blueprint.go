@@ -12,7 +12,6 @@ import (
 	"strings"
 
 	"github.com/g2a-com/cicd/internal/object"
-	"github.com/g2a-com/cicd/internal/placeholders"
 	log "github.com/g2a-com/klio-logger-go"
 	"github.com/hashicorp/go-multierror"
 	"gopkg.in/yaml.v3"
@@ -121,7 +120,7 @@ func (b *Blueprint) Load(glob string) error {
 				}
 			}
 
-			err = b.addDocuments(docs...)
+			err = b.AddDocuments(docs...)
 			if err != nil {
 				return err
 			}
@@ -159,7 +158,7 @@ func (b *Blueprint) ListServices() []object.Object {
 	return services
 }
 
-func (b *Blueprint) addDocuments(documents ...object.Object) error {
+func (b *Blueprint) AddDocuments(documents ...object.Object) error {
 	for _, obj := range documents {
 		key := string(obj.Kind()) + "/" + obj.Name()
 		duplicate, ok := b.objects[key]
@@ -172,67 +171,6 @@ func (b *Blueprint) addDocuments(documents ...object.Object) error {
 	return nil
 }
 
-func (b *Blueprint) ExpandPlaceholders() (err error) {
-	project := b.GetProject()
-
-	for _, obj := range b.objects {
-		if obj.Kind() != object.ServiceKind {
-			continue
-		}
-
-		values := map[string]interface{}{
-			"Project": map[string]interface{}{
-				"Dir":  project.Directory(),
-				"Name": project.Name(),
-				"Vars": project.Variables,
-			},
-			"Service": map[string]interface{}{
-				"Dir":  obj.Directory(),
-				"Name": obj.Name(),
-			},
-			"Params": b.Params,
-		}
-
-		if b.Environment != "" {
-			environment, _ := b.GetEnvironment(b.Environment)
-			values["Environment"] = map[string]interface{}{
-				"Dir":  environment.Directory(),
-				"Name": environment.Name(),
-				"Vars": environment.Variables,
-			}
-		}
-
-		if b.Tag != "" {
-			values["Tag"] = b.Tag
-		}
-
-		switch service := obj.(type) {
-		case object.BuildService:
-			for i := range service.Build.Artifacts.ToBuild {
-				service.Build.Artifacts.ToBuild[i].Data.Spec, err = placeholders.ReplaceWithValues(service.Build.Artifacts.ToBuild[i].Data.Spec, values)
-				if err != nil {
-					return err
-				}
-			}
-			for i := range service.Build.Artifacts.ToPush {
-				service.Build.Artifacts.ToPush[i].Data.Spec, err = placeholders.ReplaceWithValues(service.Build.Artifacts.ToPush[i].Data.Spec, values)
-				if err != nil {
-					return err
-				}
-			}
-		case object.DeployService:
-			for i := range service.Deploy.Releases {
-				service.Deploy.Releases[i].Data.Spec, err = placeholders.ReplaceWithValues(service.Deploy.Releases[i].Data.Spec, values)
-				if err != nil {
-					return err
-				}
-			}
-		}
-	}
-
-	return nil
-}
-
 func (b *Blueprint) GetObject(kind object.Kind, name string) object.Object {
 	key := string(kind) + "/" + name
 	obj, ok := b.objects[key]
@@ -240,6 +178,18 @@ func (b *Blueprint) GetObject(kind object.Kind, name string) object.Object {
 		return nil
 	}
 	return obj
+}
+
+func (b *Blueprint) GetUniqueObject(kind object.Kind) object.Object {
+	result := b.GetObjectsByKind(kind)
+	switch len(result) {
+	case 0:
+		return nil
+	case 1:
+		return result[0]
+	default:
+		panic(fmt.Errorf("duplicated object of kind %s", kind))
+	}
 }
 
 func (b *Blueprint) GetObjectsByKind(kind object.Kind) []object.Object {

@@ -9,21 +9,11 @@ import (
 
 var nameRegexp *regexp.Regexp = regexp.MustCompile(`^(\.[A-Za-z0-9_]+)+$`)
 
-type valuesCollection struct {
-	ids    []string
-	values map[string]string
-	names  map[string]string
-}
-
-func newValuesCollection(values map[string]interface{}) (collection *valuesCollection, err error) {
-	collection = &valuesCollection{
-		ids:    []string{},
-		values: map[string]string{},
-		names:  map[string]string{},
-	}
-
+func normalizeValues(values map[string]interface{}) (map[string]string, error) {
 	maps := []map[string]interface{}{values}
 	prefixes := []string{""}
+	names := map[string]string{}
+	result := map[string]string{}
 
 	for i := 0; i < len(maps); i++ {
 		for k, v := range maps[i] {
@@ -32,13 +22,12 @@ func newValuesCollection(values map[string]interface{}) (collection *valuesColle
 			switch val := v.(type) {
 			case string:
 				id := strings.ToLower(name)
-				if duplicate, ok := collection.names[id]; ok {
+				if duplicate, ok := names[id]; ok {
 					names := sort.StringSlice([]string{duplicate, name})
 					return nil, &DuplicatedPlaceholderError{names[0], names[1]}
 				}
-				collection.ids = append(collection.ids, id)
-				collection.values[id] = val
-				collection.names[id] = name
+				result[name[1:]] = val
+				names[id] = name
 
 			case map[string]string:
 				prefixes = append(prefixes, name)
@@ -54,6 +43,53 @@ func newValuesCollection(values map[string]interface{}) (collection *valuesColle
 		}
 	}
 
+	return result, nil
+}
+
+func MergeValues(valuesMaps ...map[string]interface{}) (map[string]interface{}, error) {
+	result := map[string]interface{}{}
+
+	for _, values := range valuesMaps {
+		normalized, err := normalizeValues(values)
+		if err != nil {
+			return nil, err
+		}
+		for k, v := range normalized {
+			result[k] = v
+		}
+	}
+
+	return result, nil
+}
+
+type valuesCollection struct {
+	ids    []string
+	values map[string]string
+	names  map[string]string
+}
+
+func newValuesCollection(values map[string]interface{}) (*valuesCollection, error) {
+	collection := &valuesCollection{
+		ids:    []string{},
+		values: map[string]string{},
+		names:  map[string]string{},
+	}
+
+	// Flatten values, it also checks for duplicates
+	normalized, err := normalizeValues(values)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert normalized values (map of strings) to internal representation
+	for k, v := range normalized {
+		name := "." + k
+		id := strings.ToLower(name)
+		collection.ids = append(collection.ids, id)
+		collection.values[id] = v
+		collection.names[id] = name
+	}
+
 	// Sort IDs to ensure errors are always the same for given values.
 	collection.ids = sort.StringSlice(collection.ids)
 
@@ -67,10 +103,10 @@ func newValuesCollection(values map[string]interface{}) (collection *valuesColle
 	// Expland placeholders.
 	err = collection.expandPlaceholders()
 	if err != nil {
-		return
+		return nil, err
 	}
 
-	return
+	return collection, nil
 }
 
 // Get returns value for given placeholder name.

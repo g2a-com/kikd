@@ -24,7 +24,11 @@ func Test_unmarshalling_empty_deploy_service(t *testing.T) {
 }
 
 func Test_validating_empty_deploy_service_passes(t *testing.T) {
-	collection := testCollection([]Object{})
+	collection := fakeCollection{
+		fakeObject{kind: ProjectKind},
+		fakeObject{kind: EnvironmentKind},
+		fakeObject{kind: OptionsKind},
+	}
 	input := prepareTestInput(`{
 		apiVersion: g2a-cli/v2.0,
 		kind: Service,
@@ -38,9 +42,12 @@ func Test_validating_empty_deploy_service_passes(t *testing.T) {
 }
 
 func Test_validating_deploy_service_using_unknown_deployer_fails(t *testing.T) {
-	collection := testCollection([]Object{
+	collection := fakeCollection{
+		fakeObject{kind: ProjectKind},
+		fakeObject{kind: EnvironmentKind},
+		fakeObject{kind: OptionsKind},
 		fakeObject{kind: DeployerKind, name: "known", schema: "{}"},
-	})
+	}
 	input := prepareTestInput(`{
 		apiVersion: g2a-cli/v2.0, kind: Service, name: test,
 		releases: [ { unknown: {} } ],
@@ -53,9 +60,12 @@ func Test_validating_deploy_service_using_unknown_deployer_fails(t *testing.T) {
 }
 
 func Test_validating_deploy_service_using_known_deployer_passes(t *testing.T) {
-	collection := testCollection([]Object{
+	collection := fakeCollection{
+		fakeObject{kind: ProjectKind},
+		fakeObject{kind: EnvironmentKind},
+		fakeObject{kind: OptionsKind},
 		fakeObject{kind: DeployerKind, name: "known", schema: "{}"},
-	})
+	}
 	input := prepareTestInput(`{
 		apiVersion: g2a-cli/v2.0, kind: Service, name: test,
 		releases: [ { known: {} } ],
@@ -68,9 +78,12 @@ func Test_validating_deploy_service_using_known_deployer_passes(t *testing.T) {
 }
 
 func Test_validating_deploy_service_with_releases_entry_not_matching_deployer_schema_fails(t *testing.T) {
-	collection := testCollection([]Object{
+	collection := fakeCollection{
+		fakeObject{kind: ProjectKind},
+		fakeObject{kind: EnvironmentKind},
+		fakeObject{kind: OptionsKind},
 		fakeObject{kind: DeployerKind, name: "type", schema: `{ "required": ["foo"] }`},
-	})
+	}
 	input := prepareTestInput(`{
 		apiVersion: g2a-cli/v2.0, kind: Service, name: test,
 		releases: [{
@@ -85,9 +98,12 @@ func Test_validating_deploy_service_with_releases_entry_not_matching_deployer_sc
 }
 
 func Test_validating_deploy_service_with_releases_entry_matching_deployer_schema_passes(t *testing.T) {
-	collection := testCollection([]Object{
+	collection := fakeCollection{
+		fakeObject{kind: ProjectKind},
+		fakeObject{kind: EnvironmentKind},
+		fakeObject{kind: OptionsKind},
 		fakeObject{kind: DeployerKind, name: "type", schema: `{ "required": ["foo"] }`},
-	})
+	}
 	input := prepareTestInput(`{
 		apiVersion: g2a-cli/v2.0, kind: Service, name: test,
 		releases: [{
@@ -113,9 +129,11 @@ func Test_getting_entry_types_list_from_deploy_service_works(t *testing.T) {
 }
 
 func Test_getting_deploy_entries_returns_only_entries_defined_in_releases_property(t *testing.T) {
-	collection := testCollection([]Object{
+	collection := fakeCollection{
 		fakeObject{kind: ProjectKind},
-	})
+		fakeObject{kind: EnvironmentKind},
+		fakeObject{kind: OptionsKind},
+	}
 	input := prepareTestInput(`{
 		apiVersion: g2a-cli/v2.0, kind: Service, name: test,
 		artifacts: [{ build: spec }],
@@ -145,4 +163,66 @@ func Test_getting_entries_of_unknown_type_from_deploy_service_returns_empty_slic
 	result := service.Entries("unknown")
 
 	assert.Empty(t, result)
+}
+
+func Test_getting_deploy_entry_spec_works(t *testing.T) {
+	collection := fakeCollection{
+		fakeObject{kind: ProjectKind},
+		fakeObject{kind: EnvironmentKind},
+		fakeObject{kind: OptionsKind},
+	}
+	input := prepareTestInput(`{
+		apiVersion: g2a-cli/v2.0, kind: Service, name: test,
+		releases: [{ name: spec }],
+	}`)
+
+	service, _ := NewDeployService("dir/file.yaml", input)
+	entries := service.Entries(DeployEntryType)
+	result := entries[0].Spec(collection)
+
+	assert.Equal(t, "spec", result)
+}
+
+func Test_getting_deploy_entry_spec_fills_placeholders_using_values_from_service_environment_project_and_options(t *testing.T) {
+	collection := fakeCollection{
+		fakeObject{
+			kind:              ProjectKind,
+			placeholderValues: map[string]interface{}{"Projects.Foo": "1"},
+		},
+		fakeObject{
+			kind:              EnvironmentKind,
+			placeholderValues: map[string]interface{}{"Environment.Bar": "2"},
+		},
+		fakeObject{
+			kind:              OptionsKind,
+			placeholderValues: map[string]interface{}{"Options.Egg": "3"},
+		},
+	}
+	input := prepareTestInput(`{
+		apiVersion: g2a-cli/v2.0, kind: Service, name: test,
+		releases: [{ name: "{{.Service.Name}} {{.Projects.Foo}} {{.Environment.Bar}} {{.Options.Egg}}" }],
+	}`)
+
+	service, _ := NewDeployService("dir/file.yaml", input)
+	entries := service.Entries(DeployEntryType)
+	result := entries[0].Spec(collection)
+
+	assert.Equal(t, "test 1 2 3", result)
+}
+
+func Test_validating_deploy_service_with_entries_fails_when_there_is_no_project_in_the_collection(t *testing.T) {
+	collection := fakeCollection{
+		fakeObject{kind: EnvironmentKind},
+		fakeObject{kind: OptionsKind},
+		fakeObject{kind: DeployerKind, name: "test"},
+	}
+	input := prepareTestInput(`{
+		apiVersion: g2a-cli/v2.0, kind: Service, name: test,
+		releases: [{ test: "" }],
+	}`)
+
+	service, _ := NewDeployService("dir/file.yaml", input)
+	err := service.Validate(collection)
+
+	assert.Error(t, err)
 }

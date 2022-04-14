@@ -12,4 +12,5 @@ type Entry interface {
 	ExecutorKind() Kind
 	ExecutorName() string
 	Spec(ObjectCollection) interface{}
+	Validate(ObjectCollection) error
 }

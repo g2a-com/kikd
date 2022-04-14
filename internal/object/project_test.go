@@ -24,7 +24,7 @@ func Test_unmarshalling_empty_project(t *testing.T) {
 }
 
 func Test_validating_empty_project_passes(t *testing.T) {
-	collection := testCollection([]Object{})
+	collection := fakeCollection{}
 	input := prepareTestInput(`{
 		apiVersion: g2a-cli/v2.0,
 		kind: Project,
@@ -38,9 +38,9 @@ func Test_validating_empty_project_passes(t *testing.T) {
 }
 
 func Test_validating_duplicated_project_fails(t *testing.T) {
-	collection := testCollection([]Object{
+	collection := fakeCollection{
 		fakeObject{kind: ProjectKind},
-	})
+	}
 	input := prepareTestInput(`{
 		apiVersion: g2a-cli/v2.0,
 		kind: Project,

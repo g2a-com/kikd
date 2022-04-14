@@ -25,7 +25,7 @@ func Test_unmarshalling_empty_executor(t *testing.T) {
 }
 
 func Test_validating_empty_executor_passes(t *testing.T) {
-	collection := testCollection([]Object{})
+	collection := fakeCollection{}
 	input := prepareTestInput(`{
 		apiVersion: g2a-cli/v2.0,
 		kind: Tagger,

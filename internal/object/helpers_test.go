@@ -1,21 +1,26 @@
 package object
 
 import (
+	"fmt"
+
 	"github.com/g2a-com/cicd/internal/schema"
 	"github.com/qri-io/jsonschema"
 	"gopkg.in/yaml.v3"
 )
 
 type fakeObject struct {
-	metadata    metadata
-	kind        Kind
-	name        string
-	directory   string
-	displayName string
-	schema      string
-	entryTypes  []string
-	entries     []Entry
+	metadata          metadata
+	kind              Kind
+	name              string
+	directory         string
+	displayName       string
+	schema            string
+	entryTypes        []string
+	entries           []Entry
+	placeholderValues map[string]interface{}
 }
+
+var _ Object = fakeObject{}
 
 func (o fakeObject) Name() string {
 	return o.name
@@ -42,6 +47,9 @@ func (o fakeObject) Validate(ObjectCollection) error {
 }
 
 func (o fakeObject) Schema() *jsonschema.Schema {
+	if o.schema == "" {
+		return jsonschema.Must("{}")
+	}
 	return jsonschema.Must(o.schema)
 }
 
@@ -51,6 +59,10 @@ func (o fakeObject) EntryTypes() []string {
 
 func (o fakeObject) Entries(string) []Entry {
 	return o.entries
+}
+
+func (o fakeObject) PlaceholderValues() map[string]interface{} {
+	return o.placeholderValues
 }
 
 // testInput validates input against schema and returns it back. Use only in
@@ -68,9 +80,9 @@ func prepareTestInput(input string) *yaml.Node {
 	return result
 }
 
-type testCollection []Object
+type fakeCollection []Object
 
-func (c testCollection) GetObject(kind Kind, name string) Object {
+func (c fakeCollection) GetObject(kind Kind, name string) Object {
 	for _, o := range c {
 		if o.Kind() == kind && o.Name() == name {
 			return o
@@ -79,7 +91,21 @@ func (c testCollection) GetObject(kind Kind, name string) Object {
 	return nil
 }
 
-func (c testCollection) GetObjectsByKind(kind Kind) []Object {
+func (c fakeCollection) GetUniqueObject(kind Kind) Object {
+	var result Object
+	for _, o := range c {
+		if o.Kind() == kind {
+			if result == nil {
+				result = o
+			} else {
+				panic(fmt.Errorf("duplicated object of %s kind", o.Kind()))
+			}
+		}
+	}
+	return result
+}
+
+func (c fakeCollection) GetObjectsByKind(kind Kind) []Object {
 	result := []Object{}
 	for _, o := range c {
 		if o.Kind() == kind {

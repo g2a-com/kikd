@@ -31,3 +31,11 @@ func (p Project) Validate(objects ObjectCollection) (err error) {
 
 	return
 }
+
+func (p Project) PlaceholderValues() map[string]interface{} {
+	return map[string]interface{}{
+		"Project.Name": p.Name(),
+		"Project.Dir":  p.Directory(),
+		"Project.Vars": p.Variables,
+	}
+}

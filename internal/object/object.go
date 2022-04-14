@@ -21,10 +21,12 @@ type Object interface {
 	Validate(ObjectCollection) error
 	EntryTypes() []string
 	Entries(string) []Entry
+	PlaceholderValues() map[string]interface{}
 }
 
 type ObjectCollection interface {
 	GetObject(kind Kind, name string) Object
+	GetUniqueObject(kind Kind) Object
 	GetObjectsByKind(kind Kind) []Object
 }
 
@@ -66,6 +68,10 @@ func (o GenericObject) EntryTypes() []string {
 
 func (o GenericObject) Entries(entryType string) []Entry {
 	return []Entry{}
+}
+
+func (o GenericObject) PlaceholderValues() map[string]interface{} {
+	return map[string]interface{}{}
 }
 
 func NewObject(mode string, filename string, data *yaml.Node) (Object, error) {

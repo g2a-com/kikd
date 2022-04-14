@@ -24,7 +24,7 @@ func Test_unmarshalling_empty_environment(t *testing.T) {
 }
 
 func Test_validating_empty_environment_passes(t *testing.T) {
-	collection := testCollection([]Object{})
+	collection := fakeCollection{}
 	input := prepareTestInput(`{
 		apiVersion: g2a-cli/v2.0,
 		kind: Environment,
@@ -38,9 +38,9 @@ func Test_validating_empty_environment_passes(t *testing.T) {
 }
 
 func Test_validating_environment_with_deploy_services_containing_known_services_passes(t *testing.T) {
-	collection := testCollection([]Object{
+	collection := fakeCollection{
 		fakeObject{kind: ServiceKind, name: "known"},
-	})
+	}
 	input := prepareTestInput(`{
 		apiVersion: g2a-cli/v2.0,
 		kind: Environment,
@@ -55,9 +55,9 @@ func Test_validating_environment_with_deploy_services_containing_known_services_
 }
 
 func Test_validating_environment_with_deploy_services_containing_unknown_services_fails(t *testing.T) {
-	collection := testCollection([]Object{
+	collection := fakeCollection{
 		fakeObject{kind: ServiceKind, name: "known"},
-	})
+	}
 	input := prepareTestInput(`{
 		apiVersion: g2a-cli/v2.0,
 		kind: Environment,

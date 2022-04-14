@@ -30,3 +30,11 @@ func (e Environment) Validate(c ObjectCollection) (err error) {
 	}
 	return
 }
+
+func (e Environment) PlaceholderValues() map[string]interface{} {
+	return map[string]interface{}{
+		"Environment.Name": e.Name(),
+		"Environment.Dir":  e.Directory(),
+		"Environment.Vars": e.Variables,
+	}
+}
