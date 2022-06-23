@@ -2,19 +2,19 @@ package script
 
 import (
 	"fmt"
+	"github.com/g2a-com/cicd/internal/component/executor"
 
 	"github.com/d5/tengo/v2"
-	"github.com/g2a-com/cicd/internal/object"
 	"github.com/g2a-com/cicd/internal/script/stdlib"
 	logger "github.com/g2a-com/klio-logger-go/v2"
 )
 
 type Script struct {
-	executor object.Executor
+	executor executor.Executor
 	Logger   logger.Logger
 }
 
-func New(executor object.Executor) *Script {
+func New(executor executor.Executor) *Script {
 	script := &Script{}
 	script.executor = executor
 	script.Logger = logger.StandardLogger()

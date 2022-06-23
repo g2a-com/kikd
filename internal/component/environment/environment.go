@@ -1,31 +1,32 @@
-package object
+package environment
 
 import (
 	"fmt"
+	"github.com/g2a-com/cicd/internal/component"
 
 	"github.com/hashicorp/go-multierror"
 	"gopkg.in/yaml.v3"
 )
 
 type environment struct {
-	GenericObject
+	component.Backbone
 
 	DeployServices []string
 	Variables      map[string]string
 }
 
-var _ Object = environment{}
+var _ component.Component = environment{}
 
-func NewEnvironment(filename string, data *yaml.Node) (Object, error) {
+func NewEnvironment(filename string, data *yaml.Node) (component.Component, error) {
 	e := environment{}
-	e.GenericObject.metadata = NewMetadata(filename, data)
-	err := decode(data, &e)
+	e.Backbone.SetMetadata(component.NewMetadata(filename, data))
+	err := component.Decode(data, &e)
 	return e, err
 }
 
-func (e environment) Validate(c ObjectCollection) (err error) {
+func (e environment) Validate(c component.ObjectCollection) (err error) {
 	for _, name := range e.DeployServices {
-		if c.GetObject(ServiceKind, name) == nil {
+		if c.GetObject(component.ServiceKind, name) == nil {
 			err = multierror.Append(err, fmt.Errorf("missing service %q deployed to environment %q defined in the file:\n\t  %s", name, e.Name(), e.Metadata().Filename()))
 		}
 	}

@@ -1,4 +1,4 @@
-package object
+package component
 
 import (
 	"testing"
@@ -7,7 +7,7 @@ import (
 )
 
 func Test_creating_new_metadata_instance(t *testing.T) {
-	input := prepareTestInput(`{
+	input := PrepareTestInput(`{
 		apiVersion: g2a-cli/v2.0,
 		kind: Project,
 		name: test,

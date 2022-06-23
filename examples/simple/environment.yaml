@@ -1,5 +1,5 @@
 apiVersion: g2a-cli/v2.0
-kind: Environment
+kind: environment
 name: local
 deployServices:
   - generic-api

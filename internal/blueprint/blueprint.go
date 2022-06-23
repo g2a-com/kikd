@@ -4,6 +4,11 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"github.com/g2a-com/cicd/internal/component"
+	"github.com/g2a-com/cicd/internal/component/environment"
+	"github.com/g2a-com/cicd/internal/component/executor"
+	"github.com/g2a-com/cicd/internal/component/project"
+	"github.com/g2a-com/cicd/internal/component/service"
 	"io"
 	"io/ioutil"
 	"path"
@@ -11,7 +16,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/g2a-com/cicd/internal/object"
 	log "github.com/g2a-com/klio-logger-go"
 	"github.com/hashicorp/go-multierror"
 	"gopkg.in/yaml.v3"
@@ -34,7 +38,7 @@ type Blueprint struct {
 	Environment    string
 	Tag            string
 	Preprocessors  []Preprocessor
-	objects        map[string]object.Object
+	objects        map[string]component.Component
 	processedFiles map[string]bool
 }
 
@@ -43,7 +47,7 @@ func (b *Blueprint) init() error {
 		b.processedFiles = map[string]bool{}
 	}
 	if b.objects == nil {
-		b.objects = map[string]object.Object{}
+		b.objects = map[string]component.Component{}
 	}
 
 	if b.Mode == "" {
@@ -64,13 +68,13 @@ func (b *Blueprint) Validate() (err error) {
 	}
 
 	if b.Environment != "" {
-		if b.GetObject(object.EnvironmentKind, b.Environment) == nil {
+		if b.GetObject(component.EnvironmentKind, b.Environment) == nil {
 			err = multierror.Append(err, fmt.Errorf("environment %q does not exist, available environments: %s", b.Environment, strings.Join(b.getEnvironmentNames(), ", ")))
 		}
 	}
 
 	for _, name := range b.getServiceNames() {
-		if b.GetObject(object.ServiceKind, name) == nil {
+		if b.GetObject(component.ServiceKind, name) == nil {
 			err = multierror.Append(err, fmt.Errorf("service %q does not exist, available services: %s", name, strings.Join(b.getServiceNames(), ", ")))
 		}
 	}
@@ -112,7 +116,7 @@ func (b *Blueprint) Load(glob string) error {
 			}
 
 			for _, obj := range docs {
-				project, ok := obj.(object.Project)
+				project, ok := obj.(project.Project)
 				if ok {
 					for _, entry := range project.Files() {
 						globs = append(globs, path.Join(project.Directory(), entry))
@@ -131,34 +135,34 @@ func (b *Blueprint) Load(glob string) error {
 }
 
 // GetProject gets Project object
-func (b *Blueprint) GetProject() object.Project {
-	return b.GetUniqueObject(object.ProjectKind).(object.Project)
+func (b *Blueprint) GetProject() project.Project {
+	return b.GetUniqueObject(component.ProjectKind).(project.Project)
 }
 
 // GetEnvironment gets Executor object by kind and name
-func (b *Blueprint) GetExecutor(kind object.Kind, name string) (object.Executor, bool) {
+func (b *Blueprint) GetExecutor(kind component.Kind, name string) (executor.Executor, bool) {
 	o := b.GetObject(kind, name)
-	e, ok := o.(object.Executor)
+	e, ok := o.(executor.Executor)
 	return e, o != nil && ok
 }
 
 // GetEnvironment gets Environment object by the name
-func (b *Blueprint) GetEnvironment(name string) (object.Object, bool) {
-	obj := b.GetObject(object.EnvironmentKind, name)
+func (b *Blueprint) GetEnvironment(name string) (component.Component, bool) {
+	obj := b.GetObject(component.EnvironmentKind, name)
 	return obj, obj != nil
 }
 
 // ListServices returns all service objects in the blueprint
-func (b *Blueprint) ListServices() []object.Object {
+func (b *Blueprint) ListServices() []component.Component {
 	names := b.getServiceNames()
-	services := make([]object.Object, 0, len(names))
+	services := make([]component.Component, 0, len(names))
 	for _, name := range b.getServiceNames() {
-		services = append(services, b.GetObject(object.ServiceKind, name))
+		services = append(services, b.GetObject(component.ServiceKind, name))
 	}
 	return services
 }
 
-func (b *Blueprint) AddDocuments(documents ...object.Object) error {
+func (b *Blueprint) AddDocuments(documents ...component.Component) error {
 	for _, obj := range documents {
 		key := string(obj.Kind()) + "/" + obj.Name()
 		duplicate, ok := b.objects[key]
@@ -171,7 +175,7 @@ func (b *Blueprint) AddDocuments(documents ...object.Object) error {
 	return nil
 }
 
-func (b *Blueprint) GetObject(kind object.Kind, name string) object.Object {
+func (b *Blueprint) GetObject(kind component.Kind, name string) component.Component {
 	key := string(kind) + "/" + name
 	obj, ok := b.objects[key]
 	if !ok {
@@ -180,7 +184,7 @@ func (b *Blueprint) GetObject(kind object.Kind, name string) object.Object {
 	return obj
 }
 
-func (b *Blueprint) GetUniqueObject(kind object.Kind) object.Object {
+func (b *Blueprint) GetUniqueObject(kind component.Kind) component.Component {
 	result := b.GetObjectsByKind(kind)
 	switch len(result) {
 	case 0:
@@ -192,7 +196,7 @@ func (b *Blueprint) GetUniqueObject(kind object.Kind) object.Object {
 	}
 }
 
-func (b *Blueprint) GetObjectsByKind(kind object.Kind) []object.Object {
+func (b *Blueprint) GetObjectsByKind(kind component.Kind) []component.Component {
 	keys := make([]string, 0, len(b.objects))
 	for key, obj := range b.objects {
 		if obj.Kind() == kind {
@@ -201,7 +205,7 @@ func (b *Blueprint) GetObjectsByKind(kind object.Kind) []object.Object {
 	}
 	keys = sort.StringSlice(keys)
 
-	objects := make([]object.Object, 0, len(keys))
+	objects := make([]component.Component, 0, len(keys))
 	for _, key := range keys {
 		objects = append(objects, b.objects[key])
 	}
@@ -214,7 +218,7 @@ func (b *Blueprint) getServiceNames() (names []string) {
 		return b.Services
 	}
 	for _, obj := range b.objects {
-		if obj.Kind() == object.ServiceKind {
+		if obj.Kind() == component.ServiceKind {
 			names = append(names, obj.Name())
 		}
 	}
@@ -224,7 +228,7 @@ func (b *Blueprint) getServiceNames() (names []string) {
 
 func (b *Blueprint) getEnvironmentNames() (names []string) {
 	for _, obj := range b.objects {
-		if obj.Kind() == object.EnvironmentKind {
+		if obj.Kind() == component.EnvironmentKind {
 			names = append(names, obj.Name())
 		}
 	}
@@ -232,7 +236,7 @@ func (b *Blueprint) getEnvironmentNames() (names []string) {
 	return names
 }
 
-func (b *Blueprint) readFile(filename string, mode Mode) ([]object.Object, error) {
+func (b *Blueprint) readFile(filename string, mode Mode) ([]component.Component, error) {
 	log.Debugf("Loading file: %s", filename)
 
 	filename, err := filepath.Abs(filename)
@@ -252,7 +256,7 @@ func (b *Blueprint) readFile(filename string, mode Mode) ([]object.Object, error
 		}
 	}
 
-	var documents []object.Object
+	var documents []component.Component
 
 	reader := bytes.NewReader(buf)
 	decoder := yaml.NewDecoder(reader)
@@ -268,12 +272,12 @@ func (b *Blueprint) readFile(filename string, mode Mode) ([]object.Object, error
 			break
 		}
 
-		doc, err := object.NewObject(string(b.Mode), filename, &content)
+		doc, err := newObject(string(b.Mode), filename, &content)
 		if err != nil {
 			return nil, err
 		}
 
-		if mode != DeployMode && doc.Kind() == object.EnvironmentKind {
+		if mode != DeployMode && doc.Kind() == component.EnvironmentKind {
 			continue
 		}
 
@@ -281,4 +285,35 @@ func (b *Blueprint) readFile(filename string, mode Mode) ([]object.Object, error
 	}
 
 	return documents, nil
+}
+
+func newObject(mode string, filename string, data *yaml.Node) (component.Component, error) {
+	var obj component.Backbone
+	err := data.Decode(&obj)
+	if err != nil {
+		return nil, err
+	}
+
+	switch obj.Kind() {
+	case component.ProjectKind:
+		return project.NewProject(filename, data)
+	case component.ServiceKind:
+		switch mode {
+		case "build":
+			return service.NewBuildService(filename, data)
+		case "deploy":
+			return service.NewDeployService(filename, data)
+		default:
+			return nil, fmt.Errorf("unknown mode %s", mode)
+		}
+	case component.EnvironmentKind:
+		return environment.NewEnvironment(filename, data)
+	case component.BuilderKind,
+		component.DeployerKind,
+		component.PusherKind,
+		component.TaggerKind:
+		return executor.NewExecutor(filename, data)
+	default:
+		return nil, fmt.Errorf("unknown kind %q", obj.Kind())
+	}
 }

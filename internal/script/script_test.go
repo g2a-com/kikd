@@ -2,9 +2,9 @@ package script
 
 import (
 	"fmt"
+	"github.com/g2a-com/cicd/internal/component/executor"
 	"testing"
 
-	"github.com/g2a-com/cicd/internal/object"
 	fakelogger "github.com/g2a-com/cicd/internal/utils/fake_logger"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v3"
@@ -56,7 +56,7 @@ func Test_returns_error_when_script_is_aborted(t *testing.T) {
 }
 
 // TODO: use object.fakeObject instead (needs to be exported first)
-func newExecutor(script string) object.Executor {
+func newExecutor(script string) executor.Executor {
 	var node yaml.Node
 	err := yaml.Unmarshal([]byte(fmt.Sprintf(`{
 		kind: Builder,
@@ -68,7 +68,7 @@ func newExecutor(script string) object.Executor {
 		panic(err)
 	}
 
-	obj, err := object.NewExecutor("file.yaml", &node)
+	obj, err := executor.NewExecutor("file.yaml", &node)
 	if err != nil {
 		panic(err)
 	}

@@ -2,12 +2,13 @@ package main
 
 import (
 	"fmt"
+	"github.com/g2a-com/cicd/internal/component"
+	"github.com/g2a-com/cicd/internal/component/executor"
 	"os"
 	"path/filepath"
 
 	. "github.com/g2a-com/cicd/internal/blueprint"
 	"github.com/g2a-com/cicd/internal/flags"
-	"github.com/g2a-com/cicd/internal/object"
 	"github.com/g2a-com/cicd/internal/schema"
 	"github.com/g2a-com/cicd/internal/script"
 	"github.com/g2a-com/cicd/internal/utils"
@@ -63,7 +64,7 @@ func main() {
 	assert(err == nil, err)
 
 	// Helper for getting executors
-	getExecutor := func(kind object.Kind, name string) object.Executor {
+	getExecutor := func(kind component.Kind, name string) executor.Executor {
 		e, ok := blueprint.GetExecutor(kind, name)
 		assert(ok, fmt.Errorf("%s %q does not exist", kind, name))
 		return e
@@ -73,13 +74,13 @@ func main() {
 	for _, service := range blueprint.ListServices() {
 		l := l.WithTags(service.Name())
 
-		if len(service.Entries(object.BuildEntryType)) == 0 {
+		if len(service.Entries(component.BuildEntryType)) == 0 {
 			l.WithLevel(log.VerboseLevel).Print("No artifacts to build")
 			continue
 		}
 
 		// Generate tags
-		for _, entry := range service.Entries(object.TagEntryType) {
+		for _, entry := range service.Entries(component.TagEntryType) {
 			s := script.New(getExecutor(entry.ExecutorKind(), entry.ExecutorName()))
 			s.Logger = l
 
@@ -101,7 +102,7 @@ func main() {
 		}
 
 		// Build artifacts
-		for _, entry := range service.Entries(object.BuildEntryType) {
+		for _, entry := range service.Entries(component.BuildEntryType) {
 			s := script.New(getExecutor(entry.ExecutorKind(), entry.ExecutorName()))
 			s.Logger = l
 
@@ -124,7 +125,7 @@ func main() {
 		for _, service := range blueprint.ListServices() {
 			l := l.WithTags("push", service.Name())
 
-			for _, entry := range service.Entries(object.PushEntryType) {
+			for _, entry := range service.Entries(component.PushEntryType) {
 				s := script.New(getExecutor(entry.ExecutorKind(), entry.ExecutorName()))
 				s.Logger = l
 

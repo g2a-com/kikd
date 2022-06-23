@@ -1,9 +1,11 @@
 package main
 
-import "github.com/g2a-com/cicd/internal/object"
+import (
+	"github.com/g2a-com/cicd/internal/component"
+)
 
 type options struct {
-	object.GenericObject
+	component.Backbone
 
 	Environment string            `flag:"environment" alias:"e" help:"Name of an environment to deploy to" required:"true"`
 	Tag         string            `flag:"tag" alias:"t" help:"Tag (version) of service to deploy"`
@@ -16,8 +18,8 @@ type options struct {
 	ResultFile  string            `flag:"result-file" help:"Where to write result file"`
 }
 
-func (o options) Kind() object.Kind {
-	return object.OptionsKind
+func (o options) Kind() component.Kind {
+	return component.OptionsKind
 }
 
 func (o options) PlaceholderValues() map[string]interface{} {

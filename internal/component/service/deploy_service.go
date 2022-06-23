@@ -1,8 +1,10 @@
-package object
+package service
 
 import (
 	"context"
 	"fmt"
+	"github.com/g2a-com/cicd/internal/component"
+	executor2 "github.com/g2a-com/cicd/internal/component/executor"
 	"strings"
 
 	"github.com/g2a-com/cicd/internal/placeholders"
@@ -10,51 +12,35 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-type buildService struct {
+type deployService struct {
 	GenericService
 
-	Build struct {
-		Tags      []*buildServiceEntry
-		Artifacts struct {
-			ToBuild []*buildServiceEntry
-			ToPush  []*buildServiceEntry
-		}
+	Deploy struct {
+		Releases []*deployServiceEntry
 	}
 }
 
-var _ Object = buildService{}
+var _ component.Component = deployService{}
 
-func NewBuildService(filename string, data *yaml.Node) (Object, error) {
-	service := buildService{}
-	service.GenericObject.metadata = NewMetadata(filename, data)
-	err := decode(data, &service)
+func NewDeployService(filename string, data *yaml.Node) (component.Component, error) {
+	service := deployService{}
+	service.Backbone.SetMetadata(component.NewMetadata(filename, data))
+	err := component.Decode(data, &service)
 
-	service.entries = map[string][]Entry{}
-	service.entries[TagEntryType] = make([]Entry, len(service.Build.Tags))
-	for i, entry := range service.Build.Tags {
+	service.entries = map[string][]component.Entry{}
+	service.entries[component.DeployEntryType] = make([]component.Entry, len(service.Deploy.Releases))
+	for i, entry := range service.Deploy.Releases {
 		entry.service = service
-		entry.executorKind = TaggerKind
-		service.entries[TagEntryType][i] = entry
-	}
-	service.entries[BuildEntryType] = make([]Entry, len(service.Build.Artifacts.ToBuild))
-	for i, entry := range service.Build.Artifacts.ToBuild {
-		entry.service = service
-		entry.executorKind = BuilderKind
-		service.entries[BuildEntryType][i] = entry
-	}
-	service.entries[PushEntryType] = make([]Entry, len(service.Build.Artifacts.ToPush))
-	for i, entry := range service.Build.Artifacts.ToPush {
-		entry.service = service
-		entry.executorKind = PusherKind
-		service.entries[PushEntryType][i] = entry
+		entry.executorKind = component.DeployerKind
+		service.entries[component.DeployEntryType][i] = entry
 	}
 
 	return service, err
 }
 
-type buildServiceEntry struct {
-	executorKind Kind
-	service      Object
+type deployServiceEntry struct {
+	executorKind component.Kind
+	service      component.Component
 	Data         struct {
 		Index int
 		Type  string
@@ -62,19 +48,19 @@ type buildServiceEntry struct {
 	} `mapstructure:",squash"`
 }
 
-func (e *buildServiceEntry) Index() int {
+func (e *deployServiceEntry) Index() int {
 	return e.Data.Index
 }
 
-func (e *buildServiceEntry) ExecutorKind() Kind {
+func (e *deployServiceEntry) ExecutorKind() component.Kind {
 	return e.executorKind
 }
 
-func (e *buildServiceEntry) ExecutorName() string {
+func (e *deployServiceEntry) ExecutorName() string {
 	return e.Data.Type
 }
 
-func (e *buildServiceEntry) Validate(objects ObjectCollection) error {
+func (e *deployServiceEntry) Validate(objects component.ObjectCollection) error {
 	spec, err := e.spec(objects)
 	if err != nil {
 		return err
@@ -89,7 +75,7 @@ func (e *buildServiceEntry) Validate(objects ObjectCollection) error {
 		)
 	}
 
-	executor, ok := obj.(Executor)
+	executor, ok := obj.(executor2.Executor)
 	if !ok {
 		panic("not an executor")
 	}
@@ -111,7 +97,7 @@ func (e *buildServiceEntry) Validate(objects ObjectCollection) error {
 	return nil
 }
 
-func (e *buildServiceEntry) Spec(objects ObjectCollection) interface{} {
+func (e *deployServiceEntry) Spec(objects component.ObjectCollection) interface{} {
 	spec, err := e.spec(objects)
 	if err != nil {
 		// Errors should have been handled during validation phase.
@@ -120,18 +106,23 @@ func (e *buildServiceEntry) Spec(objects ObjectCollection) interface{} {
 	return spec
 }
 
-func (e *buildServiceEntry) spec(b ObjectCollection) (interface{}, error) {
-	project := b.GetUniqueObject(ProjectKind)
+func (e *deployServiceEntry) spec(b component.ObjectCollection) (interface{}, error) {
+	project := b.GetUniqueObject(component.ProjectKind)
 	if project == nil {
 		return nil, fmt.Errorf("cannot find project")
 	}
-	options := b.GetUniqueObject(OptionsKind)
+	environment := b.GetUniqueObject(component.EnvironmentKind)
+	if environment == nil {
+		return nil, fmt.Errorf("cannot find environment")
+	}
+	options := b.GetUniqueObject(component.OptionsKind)
 	if options == nil {
 		return nil, fmt.Errorf("cannot find options")
 	}
 
 	values, err := placeholders.MergeValues(
 		project.PlaceholderValues(),
+		environment.PlaceholderValues(),
 		options.PlaceholderValues(),
 		e.service.PlaceholderValues(),
 	)
