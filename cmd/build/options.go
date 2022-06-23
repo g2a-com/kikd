@@ -1,9 +1,11 @@
 package main
 
-import "github.com/g2a-com/cicd/internal/object"
+import (
+	"github.com/g2a-com/cicd/internal/component"
+)
 
 type options struct {
-	object.GenericObject
+	component.Backbone
 
 	Push        bool              `flag:"push" alias:"p" help:"Push artifacts to remote registry"`
 	Services    []string          `flag:"services" alias:"s" help:"List of services to build (skip to build all services)"`
@@ -12,8 +14,8 @@ type options struct {
 	ResultFile  string            `flag:"result-file" help:"Where to write result file"`
 }
 
-func (o options) Kind() object.Kind {
-	return object.OptionsKind
+func (o options) Kind() component.Kind {
+	return component.OptionsKind
 }
 
 func (o options) PlaceholderValues() map[string]interface{} {

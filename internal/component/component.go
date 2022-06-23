@@ -1,18 +1,18 @@
-package object
+package component
 
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/g2a-com/cicd/internal/component/scheme"
 	"path/filepath"
 	"reflect"
 	"strings"
 
-	"github.com/g2a-com/cicd/internal/object/internal/scheme"
 	"github.com/mitchellh/mapstructure"
 	"gopkg.in/yaml.v3"
 )
 
-type Object interface {
+type Component interface {
 	Metadata() Metadata
 	Name() string
 	Kind() Kind
@@ -25,12 +25,12 @@ type Object interface {
 }
 
 type ObjectCollection interface {
-	GetObject(kind Kind, name string) Object
-	GetUniqueObject(kind Kind) Object
-	GetObjectsByKind(kind Kind) []Object
+	GetObject(kind Kind, name string) Component
+	GetUniqueObject(kind Kind) Component
+	GetObjectsByKind(kind Kind) []Component
 }
 
-type GenericObject struct {
+type Backbone struct {
 	metadata Metadata
 	Data     struct {
 		Kind Kind
@@ -38,71 +38,51 @@ type GenericObject struct {
 	} `mapstructure:",squash" yaml:",inline"`
 }
 
-func (o GenericObject) Name() string {
+func (o Backbone) SetMetadata(metadata Metadata) {
+	o.metadata = metadata
+}
+
+func (o Backbone) Name() string {
 	return o.Data.Name
 }
 
-func (o GenericObject) Kind() Kind {
+func (o Backbone) Kind() Kind {
 	return o.Data.Kind
 }
 
-func (o GenericObject) Metadata() Metadata {
+func (o Backbone) Metadata() Metadata {
 	return o.metadata
 }
 
-func (o GenericObject) Directory() string {
+func (o Backbone) Directory() string {
 	return filepath.Dir(o.metadata.Filename())
 }
 
-func (o GenericObject) DisplayName() string {
+func (o Backbone) DisplayName() string {
 	return fmt.Sprintf("%s %q", strings.ToLower(string(o.Kind())), o.Name())
 }
 
-func (o GenericObject) Validate(ObjectCollection) error {
+func (o Backbone) Validate(ObjectCollection) error {
+	panic("Function not implemented")
 	return nil
 }
 
-func (o GenericObject) EntryTypes() []string {
+func (o Backbone) EntryTypes() []string {
+	panic("Function not implemented")
 	return []string{}
 }
 
-func (o GenericObject) Entries(entryType string) []Entry {
+func (o Backbone) Entries(_ string) []Entry {
+	panic("Function not implemented")
 	return []Entry{}
 }
 
-func (o GenericObject) PlaceholderValues() map[string]interface{} {
+func (o Backbone) PlaceholderValues() map[string]interface{} {
+	panic("Function not implemented")
 	return map[string]interface{}{}
 }
 
-func NewObject(mode string, filename string, data *yaml.Node) (Object, error) {
-	var obj GenericObject
-	err := data.Decode(&obj)
-	if err != nil {
-		return nil, err
-	}
-
-	switch obj.Kind() {
-	case ProjectKind:
-		return NewProject(filename, data)
-	case ServiceKind:
-		switch mode {
-		case "build":
-			return NewBuildService(filename, data)
-		case "deploy":
-			return NewDeployService(filename, data)
-		default:
-			return nil, fmt.Errorf("unknown mode %s", mode)
-		}
-	case EnvironmentKind:
-		return NewEnvironment(filename, data)
-	case BuilderKind, DeployerKind, PusherKind, TaggerKind:
-		return NewExecutor(filename, data)
-	default:
-		return nil, fmt.Errorf("unknown kind %q", obj.Kind())
-	}
-}
-
-func decode(data *yaml.Node, result interface{}) (err error) {
+func Decode(data *yaml.Node, result interface{}) (err error) {
 	var aux interface{}
 
 	err = data.Decode(&aux)

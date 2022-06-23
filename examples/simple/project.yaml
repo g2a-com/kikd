@@ -1,5 +1,5 @@
 apiVersion: g2a-cli/v2.0
-kind: Project
+kind: project
 name: example-project
 files:
   - "*.yaml"

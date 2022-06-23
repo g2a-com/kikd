@@ -1,4 +1,4 @@
-package object
+package component
 
 const (
 	TagEntryType    = "tag"

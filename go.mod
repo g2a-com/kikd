@@ -1,4 +1,4 @@
-module github.com/g2a-com/cicd
+module github.com/g2a-com/kikd
 
 go 1.17
 
@@ -15,9 +15,6 @@ require (
 	github.com/stretchr/testify v1.7.0
 	gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c
 	k8s.io/utils v0.0.0-20220210201930-3a6ce19ff2f9
-)
-
-require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/hashicorp/errwrap v1.0.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect

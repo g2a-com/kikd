@@ -1,18 +1,19 @@
-package object
+package executor
 
 import (
+	"github.com/g2a-com/cicd/internal/component"
 	"github.com/qri-io/jsonschema"
 	"gopkg.in/yaml.v3"
 )
 
 type Executor interface {
-	Object
+	component.Component
 	Schema() *jsonschema.Schema
 	Script() string
 }
 
 type executor struct {
-	GenericObject
+	component.Backbone
 
 	Data struct {
 		Script string
@@ -24,8 +25,8 @@ var _ Executor = executor{}
 
 func NewExecutor(filename string, data *yaml.Node) (Executor, error) {
 	e := executor{}
-	e.GenericObject.metadata = NewMetadata(filename, data)
-	err := decode(data, &e)
+	e.Backbone.SetMetadata(component.NewMetadata(filename, data))
+	err := component.Decode(data, &e)
 	return e, err
 }
 

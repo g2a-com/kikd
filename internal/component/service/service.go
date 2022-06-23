@@ -1,19 +1,20 @@
-package object
+package service
 
 import (
+	"github.com/g2a-com/cicd/internal/component"
 	"sort"
 
 	"github.com/hashicorp/go-multierror"
 )
 
 type GenericService struct {
-	GenericObject
-	entries map[string][]Entry
+	component.Backbone
+	entries map[string][]component.Entry
 }
 
-var _ Object = GenericService{}
+var _ component.Component = GenericService{}
 
-func (s GenericService) Validate(c ObjectCollection) (err error) {
+func (s GenericService) Validate(c component.ObjectCollection) (err error) {
 	for _, entryType := range s.EntryTypes() {
 		for _, entry := range s.entries[entryType] {
 			e := entry.Validate(c)
@@ -35,8 +36,8 @@ func (s GenericService) EntryTypes() []string {
 	return result
 }
 
-func (s GenericService) Entries(entryType string) []Entry {
-	result := make([]Entry, len(s.entries[entryType]))
+func (s GenericService) Entries(entryType string) []component.Entry {
+	result := make([]component.Entry, len(s.entries[entryType]))
 	copy(result, s.entries[entryType])
 	return result
 }
